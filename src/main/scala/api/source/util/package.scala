@@ -7,6 +7,7 @@
 
 package api.source
 
+import scala.reflect.{classTag, ClassTag}
 import scala.reflect.io.VirtualFile
 import scala.tools.nsc.Settings
 import scala.tools.nsc.reporters.ConsoleReporter
@@ -77,27 +78,32 @@ package object util {
     require(constructors.size == 1,
       "Ambiguous constructor, only single constructor classes are allowed.")
     try {
-      Right(constructors.head.asInstanceOf[Constructor[T]].newInstance(args))
+      Right(constructors.head.asInstanceOf[Constructor[T]]
+        .newInstance(args.asInstanceOf[Seq[AnyRef]]: _*))
     } catch {
       case e: Exception => Left(e)
     }
   }
 
-  def compile[T](src: String, outDir: String, name: String, isFile: Boolean = true)
+  def compile[T: ClassTag](src: String, outDir: String, name: String, isFile: Boolean = true)
       : ClsEither[T] = {
     if (!makeDirs(outDir)) throw new IOException(s"Unable to create dir '$outDir'")
 
     val settings = {
       val settings = new Settings
 
-      val bootPathList = List(pathOfClass("scala.tools.nsc.Global"),
-        pathOfClass("scala.ScalaObject"))
-      // Make sure both scala library and compiler were found
-      assume(!bootPathList.contains(""), "Scala lang. libraries could not be found.")
-      settings.bootclasspath.value =
-        (settings.bootclasspath.value :: bootPathList).mkString(File.pathSeparator)
+      // Load resource classpaths, if specified
+      settings.embeddedDefaults[T]
 
-      //settings.classpath.value += File.pathSeparator + pathOfClass("")
+      // We need the JAR/class paths of the Scala compiler, Scala library,
+      // and the project that is using this library
+      val bootPathList = List(pathOfClass("scala.tools.nsc.Global"),
+        pathOfClass("scala.ScalaObject"), pathOfClass(classTag[T].runtimeClass.getName))
+      // Make sure both scala library and compiler were found
+      assume(!bootPathList.contains(""), "Key Jar/class path could not be found.")
+
+      settings.bootclasspath.value = (settings.bootclasspath.value :: bootPathList)
+        .mkString(File.pathSeparator)
 
       settings.outdir.value = outDir
       settings
@@ -121,6 +127,6 @@ package object util {
 
     reporter.printSummary()
     if (reporter.hasErrors) Left(new RuntimeException(strWriter.toString))
-    else loadClass(outDir + name)
+    else loadClass(outDir + File.separator + name)
   }
 }
