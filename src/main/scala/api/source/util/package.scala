@@ -98,7 +98,8 @@ package object util {
       // We need the JAR/class paths of the Scala compiler, Scala library,
       // and the project that is using this library
       val bootPathList = List(pathOfClass("scala.tools.nsc.Global"),
-        pathOfClass("scala.ScalaObject"), pathOfClass(classTag[T].runtimeClass.getName))
+        pathOfClass("scala.ScalaObject"),
+        pathOfClass(classTag[T].runtimeClass.getName), outDir)
       // Make sure both scala library and compiler were found
       assume(!bootPathList.contains(""), "Key Jar/class path could not be found.")
 
