@@ -71,11 +71,15 @@ package object util {
   }
 
   def newInstance[T](cls: Class[T], args: Seq[Any] = Seq.empty): T = {
-    val constructors =  cls.getConstructors.toList
-    require(constructors.size == 1,
-      "Ambiguous constructor, only single constructor classes are allowed.")
-    constructors.head.asInstanceOf[Constructor[T]]
-      .newInstance(args.asInstanceOf[Seq[AnyRef]]: _*)
+    if (cls.getName.endsWith("$")) cls.getField("MODULE$").get(null).asInstanceOf[T]
+    else {
+      val constructors =  cls.getConstructors.toList
+      require(constructors.size == 1,
+        "Constructor not found or ambiguous constructor " +
+          "(only single constructor classes are allowed)")
+      constructors.head.asInstanceOf[Constructor[T]]
+        .newInstance(args.asInstanceOf[Seq[AnyRef]]: _*)
+    }
   }
 
   def compile[T: ClassTag](src: String, outDir: String, name: String, isFile: Boolean = true)

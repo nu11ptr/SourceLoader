@@ -26,8 +26,8 @@ package api.source.example {
     val srcDir = System.getProperty("user.dir") +
       List("", "src", "main", "resources", "").mkString(File.separator)
 
-    srcFileToClass[ChildConfig](srcFile = srcDir + "MyChildConfig.cfg")
-    srcFileToObj[ParentConfig](srcFile = srcDir + "MyParentConfig.cfg") match {
+    srcFileToClass[ChildConfig](srcDir + "MyChildConfig.cfg", "MyChildConfig$")
+    srcFileToObj[ParentConfig](srcDir + "MyParentConfig.cfg", "MyParentConfig$") match {
       case Left(e)        =>
         throw e
       case Right(config)  =>
