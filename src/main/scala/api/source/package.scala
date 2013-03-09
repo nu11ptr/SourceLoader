@@ -17,8 +17,8 @@ package object source {
   type ObjEither[T] = Either[Exception, T]
 
   private def tryCompile[T: ClassTag](src:        String,
-                                      outDir:     String,
                                       name:       String,
+                                      outDir:     String,
                                       srcLastMod: Long,
                                       force:      Boolean,
                                       isFile:     Boolean): ClsEither[T] = {
@@ -39,8 +39,8 @@ package object source {
 
   // *** Main functions ***
   def srcFileToClass[T: ClassTag](srcFile:  String,
-                                  outDir:   String = "",
                                   name:     String = "",
+                                  outDir:   String = "",
                                   force:    Boolean = false): ClsEither[T] = {
     val (out, file) = splitPathAndFile(srcFile)
     require(file.nonEmpty, "Must specify file name")
@@ -50,35 +50,35 @@ package object source {
     val srcLastMod = lastModified(srcFile)
     require(srcLastMod > 0L, "Source file not found?")
 
-    tryCompile(srcFile, newOut, clsName, srcLastMod, force, isFile = true)
+    tryCompile(srcFile, clsName, newOut, srcLastMod, force, isFile = true)
   }
 
   def srcToClass[T: ClassTag](src:      String,
-                              outDir:   String,
                               name:     String,
+                              outDir:   String = "",
                               modDate:  Date = new Date,
                               force:    Boolean = false): ClsEither[T] = {
     require(src.nonEmpty, "Must specify source code")
     require(name.nonEmpty, "Must specify name of class/object")
-    val newOut = outDir
+    val newOut = if (outDir.isEmpty) System.getProperty("user.dir") else outDir
     val clsName = name
     val srcLastMod = modDate.getTime
 
-    tryCompile(src, newOut, clsName, srcLastMod, force, isFile = false)
+    tryCompile(src, clsName, newOut, srcLastMod, force, isFile = false)
   }
 
   def srcFileToObj[T: ClassTag](srcFile:  String,
+                                name:     String = "",
                                 args:     Seq[Any] = Seq.empty,
                                 outDir:   String = "",
-                                name:     String = "",
                                 force:    Boolean = false): ObjEither[T] =
-    tryCreate(srcFileToClass(srcFile, outDir, name, force), args)
+    tryCreate(srcFileToClass(srcFile, name, outDir, force), args)
 
   def srcToObj[T: ClassTag](src:      String,
-                            outDir:   String,
                             name:     String,
                             args:     Seq[Any] = Seq.empty,
+                            outDir:   String = "",
                             modDate:  Date = new Date,
                             force:    Boolean = false): ObjEither[T] =
-    tryCreate(srcToClass(src, outDir, name, modDate, force), args)
+    tryCreate(srcToClass(src, name, outDir, modDate, force), args)
 }
