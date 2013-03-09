@@ -25,16 +25,18 @@ package object source {
     val clsPath = outDir + File.separator + name
     val clsLastMod = lastModified(clsPath + ".class")
 
-    if (force || (clsLastMod == 0L) || (srcLastMod > clsLastMod)) {
+    if (force || (clsLastMod == 0L) || (srcLastMod > clsLastMod))
       compile(src, outDir, name, isFile)
-    } else loadClass(clsPath)
+    else Right(loadClass(clsPath))
   }
 
   private def tryCreate[T: ClassTag](clsEither: ClsEither[T], args: Seq[Any])
       : ObjEither[T] =
-    clsEither match {
+    try clsEither match {
       case Left(obj)  => Left(obj)
-      case Right(cls) => newInstance(cls, args)
+      case Right(cls) => Right(newInstance(cls, args))
+    } catch {
+      case e: Exception => Left(e)
     }
 
   // *** Main functions ***
@@ -42,15 +44,19 @@ package object source {
                                   name:     String = "",
                                   outDir:   String = "",
                                   force:    Boolean = false): ClsEither[T] = {
-    val (out, file) = splitPathAndFile(srcFile)
-    require(file.nonEmpty, "Must specify file name")
-    val newOut = if (outDir.isEmpty) out else outDir
-    val clsName = if (name.isEmpty) stripExt(file) else name
+    try {
+      val (out, file) = splitPathAndFile(srcFile)
+      require(file.nonEmpty, "Must specify file name")
+      val newOut = if (outDir.isEmpty) out else outDir
+      val clsName = if (name.isEmpty) stripExt(file) else name
 
-    val srcLastMod = lastModified(srcFile)
-    require(srcLastMod > 0L, "Source file not found?")
+      val srcLastMod = lastModified(srcFile)
+      require(srcLastMod > 0L, "Source file not found?")
 
-    tryCompile(srcFile, clsName, newOut, srcLastMod, force, isFile = true)
+      tryCompile(srcFile, clsName, newOut, srcLastMod, force, isFile = true)
+    } catch {
+      case e: Exception => Left(e)
+    }
   }
 
   def srcToClass[T: ClassTag](src:      String,
@@ -58,13 +64,17 @@ package object source {
                               outDir:   String = "",
                               modDate:  Date = new Date,
                               force:    Boolean = false): ClsEither[T] = {
-    require(src.nonEmpty, "Must specify source code")
-    require(name.nonEmpty, "Must specify name of class/object")
-    val newOut = if (outDir.isEmpty) System.getProperty("user.dir") else outDir
-    val clsName = name
-    val srcLastMod = modDate.getTime
+    try {
+      require(src.nonEmpty, "Must specify source code")
+      require(name.nonEmpty, "Must specify name of class/object")
+      val newOut = if (outDir.isEmpty) System.getProperty("user.dir") else outDir
+      val clsName = name
+      val srcLastMod = modDate.getTime
 
-    tryCompile(src, clsName, newOut, srcLastMod, force, isFile = false)
+      tryCompile(src, clsName, newOut, srcLastMod, force, isFile = false)
+    } catch {
+      case e: Exception => Left(e)
+    }
   }
 
   def srcFileToObj[T: ClassTag](srcFile:  String,

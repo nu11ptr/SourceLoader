@@ -37,14 +37,11 @@ package object util {
     else ("", path)
   }
 
-  def loadClass[T](fileName: String): ClsEither[T] = {
+  def loadClass[T](fileName: String): Class[T] = {
     val (path, file) = splitPathAndFile(fileName)
     val url = new File(path).toURI.toURL
     val classLoader = new URLClassLoader(Array(url), getClass.getClassLoader)
-
-    try Right(classLoader.loadClass(file).asInstanceOf[Class[T]]) catch {
-      case e: Exception => Left(e)
-    }
+    classLoader.loadClass(file).asInstanceOf[Class[T]]
   }
 
   def getFullPath(classPath: String): String =
@@ -73,16 +70,12 @@ package object util {
     }
   }
 
-  def newInstance[T](cls: Class[T], args: Seq[Any] = Seq.empty): ObjEither[T] = {
+  def newInstance[T](cls: Class[T], args: Seq[Any] = Seq.empty): T = {
     val constructors =  cls.getConstructors.toList
     require(constructors.size == 1,
       "Ambiguous constructor, only single constructor classes are allowed.")
-    try {
-      Right(constructors.head.asInstanceOf[Constructor[T]]
-        .newInstance(args.asInstanceOf[Seq[AnyRef]]: _*))
-    } catch {
-      case e: Exception => Left(e)
-    }
+    constructors.head.asInstanceOf[Constructor[T]]
+      .newInstance(args.asInstanceOf[Seq[AnyRef]]: _*)
   }
 
   def compile[T: ClassTag](src: String, outDir: String, name: String, isFile: Boolean = true)
@@ -128,6 +121,6 @@ package object util {
 
     reporter.printSummary()
     if (reporter.hasErrors) Left(new RuntimeException(strWriter.toString))
-    else loadClass(outDir + File.separator + name)
+    else Right(loadClass(outDir + File.separator + name))
   }
 }
