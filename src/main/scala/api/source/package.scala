@@ -39,6 +39,21 @@ package object source {
     }
 
   // *** Main functions ***
+  /**
+   * Compiles given Scala source file and returns the class. If class file is
+   * newer than source than compilation step is omitted.
+   *
+   * @param srcFile The file that is compiled
+   * @param name    Fully qualified class name to load. If omitted, the class
+   *                name to load is taken from the filename portion of srcFile
+   * @param outDir  Directory to store the resulting class file. If omitted,
+   *                the value of System.getProperty("user.dir") is used
+   * @param force   Force compilation, even if class timestamp is newer than
+   *                the source file
+   * @tparam T      The interface or trait that the resulting class file must
+   *                satisfy
+   * @return        Either the class (right) or an exception if one occurred (left)
+   */
   def srcFileToClass[T: ClassTag](srcFile:  String,
                                   name:     String = "",
                                   outDir:   String = "",
@@ -58,6 +73,22 @@ package object source {
     }
   }
 
+  /**
+   * Compiles given Scala source string and returns the class. If class file is
+   * newer than source 'modDate' than compilation step is omitted.
+   *
+   * @param src     A string containing the Scala source to compile
+   * @param name    Fully qualified class name to load
+   * @param outDir  Directory to store the resulting class file. If omitted,
+   *                the value of System.getProperty("user.dir") is used
+   * @param modDate Synthetic 'src' timestamp to compare with class timestamp.
+   *                If omitted, the current date/time is used.
+   * @param force   Force compilation, even if class timestamp is newer than
+   *                the source timestamp
+   * @tparam T      The interface or trait that the resulting class file must
+   *                satisfy
+   * @return        Either the class (right) or an exception if one occurred (left)
+   */
   def srcToClass[T: ClassTag](src:      String,
                               name:     String,
                               outDir:   String = "",
@@ -76,6 +107,23 @@ package object source {
     }
   }
 
+  /**
+   * Compiles given Scala source file and returns a new class instance. If class
+   * file is newer than source than compilation step is omitted. Only classes
+   * with a single constructor are supported.
+   *
+   * @param srcFile The file that is compiled
+   * @param name    Fully qualified class name to load. If omitted, the class
+   *                name to load is taken from the filename portion of srcFile
+   * @param args    Sequence of arguments to pass to class's constructor
+   * @param outDir  Directory to store the resulting class file. If omitted,
+   *                the value of System.getProperty("user.dir") is used
+   * @param force   Force compilation, even if class timestamp is newer than
+   *                the source file
+   * @tparam T      The interface or trait that the resulting class file must
+   *                satisfy
+   * @return        Either the object (right) or an exception if one occurred (left)
+   */
   def srcFileToObj[T: ClassTag](srcFile:  String,
                                 name:     String = "",
                                 args:     Seq[Any] = Seq.empty,
@@ -83,6 +131,24 @@ package object source {
                                 force:    Boolean = false): ObjEither[T] =
     tryCreate(srcFileToClass(srcFile, name, outDir, force), args)
 
+  /**
+   * Compiles given Scala source string and returns a new class instance. If
+   * class file is newer than source 'modDate' than compilation step is omitted.
+   * Only classes with a single constructor are supported.
+   *
+   * @param src     A string containing the Scala source to compile
+   * @param name    Fully qualified class name to load
+   * @param args    Sequence of arguments to pass to class's constructor
+   * @param outDir  Directory to store the resulting class file. If omitted,
+   *                the value of System.getProperty("user.dir") is used
+   * @param modDate Synthetic 'src' timestamp to compare with class timestamp.
+   *                If omitted, the current date/time is used.
+   * @param force   Force compilation, even if class timestamp is newer than
+   *                the source timestamp
+   * @tparam T      The interface or trait that the resulting class file must
+   *                satisfy
+   * @return        Either the object (right) or an exception if one occurred (left)
+   */
   def srcToObj[T: ClassTag](src:      String,
                             name:     String,
                             args:     Seq[Any] = Seq.empty,
@@ -91,15 +157,42 @@ package object source {
                             force:    Boolean = false): ObjEither[T] =
     tryCreate(srcToClass(src, name, outDir, modDate, force), args)
 
+  /**
+   * Returns the single instance of the given class's associated companion
+   * object
+   *
+   * @param cls A class returned from one of the 'src' functions
+   * @tparam T  A trait that the returned object must satisfy
+   * @return    Either the object (right) or an exception if one occurred (left)
+   */
   def companion[T](cls: Class[T]): ObjEither[T] =
     newInstance(loadClass(companionPath(cls)))
 
+  /**
+   * Returns the single instance of the given class's associated companion
+   * object. Takes either class or exception as input which is useful for
+   * chaining function calls.
+   *
+   * @param cls Either class returned from one of the 'src' functions (right)
+   *            or an exception (left)
+   * @tparam T  A trait that the returned object must satisfy
+   * @return    Either the object (right) or an exception if one occurred (left)
+   */
   def companion[T](cls: ClsEither[T]): ObjEither[T] =
     cls match {
       case Left(e)    => Left(e)
       case Right(cl)  => companion(cl)
     }
 
+  /**
+   * Creates a new instance of a class using the passed arguments. Only classes
+   * with a single constructor are supported.
+   *
+   * @param cls   class to instantiate
+   * @param args  sequence of arguments to be passed to class's constructor
+   * @tparam T    A trait that the returned object must satisfy
+   * @return      Either the object (right) or an exception if one occurred (left)
+   */
   def newInstance[T](cls: Class[T], args: Seq[Any] = Seq.empty): ObjEither[T] = {
     try {
       Right(if (cls.getName.endsWith("$"))
@@ -116,4 +209,21 @@ package object source {
       case e: Exception => Left(e)
     }
   }
+
+  /**
+   * Creates a new instance of a class using the passed arguments. Only classes
+   * with a single constructor are supported. Takes either class or exception
+   * as input which is useful for chaining function calls.
+   *
+   * @param cls   Either class returned from one of the 'src' functions (right)
+   *              or an exception (left)
+   * @param args  sequence of arguments to be passed to class's constructor
+   * @tparam T    A trait that the returned object must satisfy
+   * @return      Either the object (right) or an exception if one occurred (left)
+   */
+  def newInstEither[T](cls: ClsEither[T], args: Seq[Any] = Seq.empty): ObjEither[T] =
+    cls match {
+      case Left(e)    => Left(e)
+      case Right(cl)  => newInstance(cl, args)
+    }
 }
