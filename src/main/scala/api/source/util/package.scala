@@ -14,7 +14,6 @@ import scala.tools.nsc.reporters.ConsoleReporter
 import scala.tools.nsc.Global
 import java.io._
 import java.net.URLClassLoader
-import java.lang.reflect.Constructor
 
 package object util {
   def lastModified(fileName: String): Long = new File(fileName).lastModified
@@ -44,16 +43,16 @@ package object util {
     classLoader.loadClass(file).asInstanceOf[Class[T]]
   }
 
-  def getFullPath(classPath: String): String =
-    Option(getClass.getResource(classPath)) match {
+  def getFullPath(classPath: String, cls: Class[_]): String =
+    Option(cls.getResource(classPath)) match {
       case None      => ""
       case Some(url) => url.getPath
     }
 
-  def pathOfClass(className: String): String = {
+  def pathOfClass(className: String, cls: Class[_] = getClass): String = {
     val resource = className.split('.').mkString("/", "/", ".class")
 
-    getFullPath(resource) match {
+    getFullPath(resource, cls) match {
       case s @ ""   => s
       case path @ _ =>
         val indexOfFile = path.indexOf("file:")
@@ -70,16 +69,9 @@ package object util {
     }
   }
 
-  def newInstance[T](cls: Class[T], args: Seq[Any] = Seq.empty): T = {
-    if (cls.getName.endsWith("$")) cls.getField("MODULE$").get(null).asInstanceOf[T]
-    else {
-      val constructors =  cls.getConstructors.toList
-      require(constructors.size == 1,
-        "Constructor not found or ambiguous constructor " +
-          "(only single constructor classes are allowed)")
-      constructors.head.asInstanceOf[Constructor[T]]
-        .newInstance(args.asInstanceOf[Seq[AnyRef]]: _*)
-    }
+  def companionPath[T](cls: Class[T]): String = {
+    val name = cls.getName
+    pathOfClass(name, cls) + File.separator + name.split('.')(0) + '$'
   }
 
   def compile[T: ClassTag](src: String, outDir: String, name: String, isFile: Boolean = true)

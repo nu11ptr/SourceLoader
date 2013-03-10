@@ -5,11 +5,8 @@
  * for further details.
  */
 
-package api.source
-
 import java.io.File
 import org.scalatest.FunSuite
-import util.newInstance
 
 trait FileTestTrait {
   def test: String
@@ -19,56 +16,63 @@ trait TestTrait {
   def test: Int
 }
 
-class CompileTests extends FunSuite {
-  private val src = """
-    import api.source.TestTrait
+package api.source {
+  class CompileTests extends FunSuite {
+    private val src = """
+      class Test(val i: Int) extends TestTrait {
+        def test: Int = i
+      }
+    """
 
-    class Test(val i: Int) extends TestTrait {
-      def test: Int = i
+    private val dir = System.getProperty("user.dir") + File.separator
+    private val name = "FileTest"
+
+    test("srcToObj") {
+      val testVal = 42
+
+      srcToObj[TestTrait](src, "Test", Seq(testVal)) match {
+        case Left(e)     => throw e
+        case Right(test) => expectResult(testVal)(test.test)
+      }
     }
-  """
 
-  private val dir = System.getProperty("user.dir") +
-    List("", "src", "test", "resources", "api", "source", "").mkString(File.separator)
-  private val name = "api.source.FileTest"
+    // NOTE: Requires 'FileTest' in cwd
+    test("srcFileToObj") {
+      val testVal = "test"
 
-  test("srcToObj") {
-    val testVal = 42
-
-    srcToObj[TestTrait](src, "Test", Seq(testVal)) match {
-      case Left(e)     => throw e
-      case Right(test) => expectResult(testVal)(test.test)
+      srcFileToObj[FileTestTrait](dir + name, name, Seq(testVal), dir) match {
+        case Left(e)     => throw e
+        case Right(test) => expectResult(testVal)(test.test)
+      }
     }
-  }
 
-  // NOTE: This test will only work when in extracted form (not in a JAR)
-  test("srcFileToObj") {
-    val testVal = "test"
+    test("srcToClass + newInstance") {
+      val testVal = 42
 
-    srcFileToObj[FileTestTrait](dir + "FileTest.scala", name, Seq(testVal), dir) match {
-      case Left(e)     => throw e
-      case Right(test) => expectResult(testVal)(test.test)
+      val obj = for {
+        c <- srcToClass[TestTrait](src, "Test").right
+        o <- newInstance(c, Seq(testVal)).right
+      } yield o
+
+      obj match {
+        case Left(e)  => throw e
+        case Right(o) => expectResult(testVal)(o.test)
+      }
     }
-  }
 
-  test("srcToClass + newInstance") {
-    val testVal = 42
+    // NOTE: Requires 'FileTest' in cwd
+    test("srcFileToClass + newInstance") {
+      val testVal = "test"
 
-    srcToClass[TestTrait](src, "Test") match {
-      case Left(e)        => throw e
-      case Right(testCls) =>
-        expectResult(testVal)(newInstance(testCls, Seq(testVal)).test)
-    }
-  }
+      val obj = for {
+        c <- srcFileToClass[FileTestTrait](dir + name, name, dir).right
+        o <- newInstance(c, Seq(testVal)).right
+      } yield o
 
-  // NOTE: This test will only work when in extracted form (not in a JAR)
-  test("srcFileToClass + newInstance") {
-    val testVal = "test"
-
-    srcFileToClass[FileTestTrait](dir + "FileTest.scala", name, dir) match {
-      case Left(e)        => throw e
-      case Right(testCls) =>
-        expectResult(testVal)(newInstance(testCls, Seq(testVal)).test)
+      obj match {
+        case Left(e)  => throw e
+        case Right(o) => expectResult(testVal)(o.test)
+      }
     }
   }
 }

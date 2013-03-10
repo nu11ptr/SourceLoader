@@ -10,6 +10,7 @@ package api
 import scala.reflect.ClassTag
 import java.util.Date
 import java.io.File
+import java.lang.reflect.Constructor
 import api.source.util._
 
 package object source {
@@ -32,11 +33,9 @@ package object source {
 
   private def tryCreate[T: ClassTag](clsEither: ClsEither[T], args: Seq[Any])
       : ObjEither[T] =
-    try clsEither match {
+    clsEither match {
       case Left(obj)  => Left(obj)
-      case Right(cls) => Right(newInstance(cls, args))
-    } catch {
-      case e: Exception => Left(e)
+      case Right(cls) => newInstance(cls, args)
     }
 
   // *** Main functions ***
@@ -91,4 +90,30 @@ package object source {
                             modDate:  Date = new Date,
                             force:    Boolean = false): ObjEither[T] =
     tryCreate(srcToClass(src, name, outDir, modDate, force), args)
+
+  def companion[T](cls: Class[T]): ObjEither[T] =
+    newInstance(loadClass(companionPath(cls)))
+
+  def companion[T](cls: ClsEither[T]): ObjEither[T] =
+    cls match {
+      case Left(e)    => Left(e)
+      case Right(cl)  => companion(cl)
+    }
+
+  def newInstance[T](cls: Class[T], args: Seq[Any] = Seq.empty): ObjEither[T] = {
+    try {
+      Right(if (cls.getName.endsWith("$"))
+        cls.getField("MODULE$").get(null).asInstanceOf[T]
+      else {
+        val constructors =  cls.getConstructors.toList
+        require(constructors.size == 1,
+          "Constructor not found or ambiguous constructor " +
+            "(only single constructor classes are allowed)")
+        constructors.head.asInstanceOf[Constructor[T]]
+          .newInstance(args.asInstanceOf[Seq[AnyRef]]: _*)
+      })
+    } catch {
+      case e: Exception => Left(e)
+    }
+  }
 }

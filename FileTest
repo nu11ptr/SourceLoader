@@ -5,8 +5,6 @@
  * for further details.
  */
 
-package api.source
-
 class FileTest(val testVal: String) extends FileTestTrait {
   def test: String = testVal
 }

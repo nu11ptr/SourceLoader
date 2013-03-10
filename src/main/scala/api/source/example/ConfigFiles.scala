@@ -5,7 +5,7 @@
  * for further details.
  */
 
-import api.source.{srcFileToObj, srcFileToClass}
+import api.source.{companion, srcFileToClass}
 import java.io.File
 
 trait ParentConfig {
@@ -21,13 +21,16 @@ trait ChildConfig {
 }
 
 package api.source.example {
-  // NOTE: This example will only work when extracted (not in a JAR file)
+  // NOTE: Requires 'MyParentConfig' and 'MyChildConfig' in cwd
   object ConfigFiles extends App {
-    val srcDir = System.getProperty("user.dir") +
-      List("", "src", "main", "resources", "").mkString(File.separator)
+    val srcDir = System.getProperty("user.dir") + File.separator
 
-    srcFileToClass[ChildConfig](srcDir + "MyChildConfig.cfg", "MyChildConfig$")
-    srcFileToObj[ParentConfig](srcDir + "MyParentConfig.cfg", "MyParentConfig$") match {
+    val obj = for {
+      _ <- srcFileToClass[ChildConfig](srcDir + "MyChildConfig.cfg").right
+      o <- companion(srcFileToClass[ParentConfig](srcDir + "MyParentConfig.cfg")).right
+    } yield o
+
+    obj match {
       case Left(e)        =>
         throw e
       case Right(config)  =>
